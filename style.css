@@ -2,3 +2,5 @@
 .mobile-result{display:none}@media(max-width:760px){body{padding-bottom:62px}.mobile-result{display:block;position:fixed;bottom:12px;left:16px;right:16px;z-index:10;background:#152943;color:white;text-align:center;font-size:15px;font-weight:600;padding:15px;border-radius:9px;box-shadow:0 4px 20px #15294330;text-decoration:none}#result-area{scroll-margin-top:16px}}
 @media print{.mobile-result{display:none}}
 .preset-label{margin-top:18px}.preset-label select{border-color:#8ac1b8;background:#f1faf7;font-size:14px}.preset-note{margin:-3px 0 20px;padding:10px 12px;background:#f3f8fa;border-radius:6px}
+
+.report-fields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px}.export-button{border:0;border-radius:7px;background:#007f76;color:white;padding:13px 20px;font:inherit;font-weight:600;cursor:pointer}.export-button:hover{background:#00675f}.export-button:focus-visible{outline:3px solid #6bc8ba;outline-offset:3px}.export-button:disabled{opacity:.5;cursor:not-allowed}@media(max-width:760px){.report-fields{grid-template-columns:1fr}.report-fields label{margin-bottom:0}.export-button{width:100%;margin-top:18px}}@media print{.report-panel{display:none}}

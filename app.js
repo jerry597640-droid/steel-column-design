@@ -29,7 +29,7 @@ const formula=s=>`<div class="formula">${s}</div>`;
 function render(){
  const hadDetails=$('calculations').querySelectorAll('details').length>0;
  const expanded=new Set([...$('calculations').querySelectorAll('details[open] summary')].map(e=>e.textContent));
- const r=compute(values());current=r;const error=$('error');error.hidden=!r.errors.length;$('results').hidden=!!r.errors.length;if(r.errors.length){$('mobile-result').textContent='請檢查輸入參數';error.textContent=r.errors.join('；');return;}
+ const r=compute(values());current=r;$('export-word').disabled=!!r.errors.length;const error=$('error');error.hidden=!r.errors.length;$('results').hidden=!!r.errors.length;if(r.errors.length){$('mobile-result').textContent='請檢查輸入參數';error.textContent=r.errors.join('；');return;}
  const v=r.v,valid=r.valid;$('status').textContent={pass:'已實作項目通過',fail:'未通過檢核',pending:'需另行分析'}[r.status];$('status-note').textContent=!valid?'斷面超出適用範圍，停止容量判定。':r.slim>200?'長細比超過建議值，需調整支承或斷面。':r.ratio>1?'需求超過容許值，請調整斷面、支承或載重。':'單一載重組合 · '+r.control+'控制軸壓容量';document.querySelector('.summary').className='summary '+r.status;$('mobile-result').textContent=$('status').textContent+' · '+(valid?f(r.ratio,3):'待分析');$('ratio').textContent=valid?f(r.ratio,3):'—';$('meter').style.width=valid?Math.min(r.ratio*100,100)+'%':'0';
  $('metrics').innerHTML=`<div class="metric"><span>容許純軸壓力 Pa</span><strong>${r.axialCapacityValid?f(r.Pa,1):'—'} <small>tf</small></strong><p>${r.axialCapacityValid?"Fa × A；不含彎矩折減":"純軸壓寬厚比超限"}</p></div><div class="metric"><span>最大彎曲長細比</span><strong>${f(r.slim,2)}</strong><p>控制：${r.lx>=r.ly?'X':'Y'} 軸 · 建議 ≤ 200</p></div><div class="metric"><span>斷面積 A</span><strong>${f(r.A,2)} <small>cm²</small></strong><p>理論幾何 · 不計圓角</p></div>`;
  let rows=r.local.map(l=>row(l.name,f(l.value),f(l.cap),l.ratio));rows.push(row('彎曲長細比 KL/r',f(r.slim),'200（建議）',r.slim/200));rows.push(row('軸壓應力 fa',f(r.fa),f(r.Fa)+' kgf/cm²',r.axial,valid),row('X 軸彎曲 fbx',f(r.fbxReq),f(r.fbx)+' kgf/cm²',r.bx,valid),row('Y 軸彎曲 fby',f(r.fbyReq),f(r.fby)+' kgf/cm²',r.by,valid));if(r.axial<=.15)rows.push(row('軸彎互制 8.2-3',valid?f(r.simple,3):'—','1.000',r.simple,valid));else rows.push(row('穩定互制 8.2-1',valid?f(r.amplified,3):'—','1.000',r.amplified,valid),row('降伏互制 8.2-2',valid?f(r.yieldInteraction,3):'—','1.000',r.yieldInteraction,valid));$('checks').innerHTML=rows.join('');$('warnings').innerHTML=[...r.blocks,...r.warnings].map(w=>`<div class="warning">${w}</div>`).join('');
@@ -47,3 +47,22 @@ function draw(r){const v=r.v,d=v.d,b=v.b,sc=Math.min(190/b,170/d),w=b*sc,hh=d*sc
 }
 $('inputs').addEventListener('submit',e=>e.preventDefault());$('inputs').addEventListener('input',e=>{if(['shape','section-preset'].includes(e.target.id))return;if(['d','b','tw','tf','fabrication'].includes(e.target.id)){$('section-preset').value='custom';presetNote();}render();});$('section-preset').addEventListener('change',applyPreset);$('shape').addEventListener('change',()=>updateShape(true));$('fabrication').addEventListener('change',render);$('weld').addEventListener('change',render);$('reset').addEventListener('click',()=>{Object.entries(defaults).forEach(([k,v])=>{if($(k))$(k).value=v;});updateShape();});updateShape();
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_steel_column_check',description:'讀取本頁目前鋼柱輸入、檢核狀態及控制比值。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({inputs:values(),errors:current.errors,status:current.status,ratio:current.valid&&Number.isFinite(current.ratio)?current.ratio:null,warnings:current.warnings,limitations:current.blocks})})).catch(()=>{});}catch{}}
+
+function reportModel(){
+ render();if(current.errors.length)throw new Error('請先修正輸入參數，再匯出報告。');
+ const textLines=el=>{const clone=el.cloneNode(true);clone.querySelectorAll('br').forEach(br=>br.replaceWith('\n'));return clone.textContent.split('\n').map(s=>s.trim()).filter(Boolean);};
+ const v=values(),inputs=Object.values(specs).flat().filter(([id])=>!$('wrap-'+id).hidden).map(([id,label,unit])=>[$('label-'+id).textContent,String(v[id]),unit]);
+ inputs.unshift(['斷面型式',$('shape').selectedOptions[0].textContent,'—']);
+ if(v.shape==='H')inputs.push(['製造方式',$('fabrication').selectedOptions[0].textContent,'—']);
+ if(v.shape==='BOX')inputs.push(['銲接方式',$('weld').selectedOptions[0].textContent,'—']);
+ inputs.push(['彎矩梯度係數 Cb','1.0（H 型彎曲保守值）','無因次']);
+ const calculations=[...$('calculations').querySelectorAll('details')].map(el=>({title:el.querySelector('summary').textContent,lines:[...el.children].filter(e=>e.tagName!=='SUMMARY').flatMap(textLines)}));
+ if(!current.valid)calculations.push({title:'容量判定暫停',lines:['超出本版適用範圍，未提供容量與互制合格判定。']});
+ return {project:$('report-project').value.trim(),member:$('report-member').value.trim(),author:$('report-author').value.trim(),time:new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})+'（台灣時間）',status:$('status').textContent,note:$('status-note').textContent,section:$('section-name').textContent,preset:$('section-preset').selectedOptions[0].textContent+'；'+$('preset-note').textContent,ratio:$('ratio').textContent,inputs,checks:[...$('checks').rows].map(tr=>[...tr.cells].map(td=>td.textContent)),warnings:[...current.blocks,...current.warnings],calculations,basis:[...$('code-basis').querySelectorAll('p')].map(e=>e.textContent),sources:[...$('code-basis').querySelectorAll('a')].map(a=>a.textContent+'：'+a.href)};
+}
+$('export-word').addEventListener('click',()=>{
+ const button=$('export-word');button.disabled=true;
+ try{const model=reportModel(),bytes=WordReport.build(model),url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}));const a=document.createElement('a');const name=(model.member||'鋼柱').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_');a.href=url;a.download='鋼柱計算報告_'+name+'_'+new Date().toISOString().slice(0,10)+'.docx';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);$('export-message').textContent='Word 報告書已產生，請查看瀏覽器下載項目。';}
+ catch(e){$('export-message').textContent='匯出失敗：'+e.message;}
+ finally{button.disabled=!!current.errors.length;}
+});
