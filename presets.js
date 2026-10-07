@@ -18,3 +18,4 @@ const SECTION_PRESETS = {
  ].map(([d,t])=>({id:`PIPE-${d}-${t}`,label:`PIPE Ø${d} × ${t}`,group:'圓管 · 美亞型錄尺寸（僅載入幾何）',d:d/10,b:d/10,tw:t/10,tf:t/10}))
 };
 if(typeof module!=='undefined')module.exports=SECTION_PRESETS;
+

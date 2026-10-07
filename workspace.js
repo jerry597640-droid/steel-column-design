@@ -23,3 +23,4 @@
  new MutationObserver(labelRows).observe(checks,{childList:true});labelRows();
  document.querySelectorAll('input[type="number"]').forEach(el=>el.setAttribute('inputmode','decimal'));
 })();
+
